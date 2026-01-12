@@ -18,7 +18,7 @@ public class QuizService {
 
     public Map<String, Object> generateQuiz(String language, String topic, String difficulty) {
         try {
-            // 1. DB에서 문제 메타데이터 가져오기
+            // 1. DB에서 메타데이터 가져오기
             List<QuizMeta> metaList = quizMetaRepository.findByLanguageAndTopicAndDifficulty(
                     language, topic, difficulty
             );
@@ -27,25 +27,30 @@ public class QuizService {
                 return createErrorResponse("해당 조건의 문제가 없습니다.");
             }
 
-            // 랜덤으로 1개 선택
+            // 2. 랜덤으로 하나 선택
             QuizMeta meta = metaList.get(new Random().nextInt(metaList.size()));
 
-            // 2. 오답 리스트 파싱
+            // 3. 오답 파싱
             List<String> wrongAnswers = parseWrongAnswers(meta.getWrongAnswers());
 
-            // 3. GPT로 문제 생성 (일단 간단하게)
-            String questionText = "다음 중 " + topic + "에 대한 올바른 설명은?";
+            // 4. GPT로 문제 텍스트 생성 ✨ 핵심!
+            String questionText = gptService.generateQuizQuestion(
+                    language,
+                    topic,
+                    meta.getCorrectAnswer(),
+                    wrongAnswers
+            );
 
-            // 4. 선택지 섞기
+            // 5. 선택지 섞기
             List<String> options = new ArrayList<>();
             options.add(meta.getCorrectAnswer());
             options.addAll(wrongAnswers);
             Collections.shuffle(options);
 
-            // 5. 정답 인덱스
+            // 6. 정답 인덱스 찾기
             int correctIndex = options.indexOf(meta.getCorrectAnswer());
 
-            // 6. 응답 생성
+            // 7. 응답 생성
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("question", questionText);
@@ -59,7 +64,7 @@ public class QuizService {
 
         } catch (Exception e) {
             e.printStackTrace();
-            return createErrorResponse("문제 생성 중 오류 발생: " + e.getMessage());
+            return createErrorResponse("문제 생성 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
